@@ -1,8 +1,11 @@
 { stdenv, fetchurl, noSysDirs
 , langC ? true, langCC ? true, langFortran ? false
+, langObjC ? stdenv.isDarwin
+, langObjCpp ? stdenv.isDarwin
 , langJava ? false
 , langAda ? false
 , langVhdl ? false
+, langGo ? false
 , profiledCompiler ? false
 , staticCompiler ? false
 , enableShared ? true
@@ -10,14 +13,17 @@
 , perl ? null # optional, for texi2pod (then pod2man); required for Java
 , gmp, mpfr, libmpc, gettext, which
 , libelf                      # optional, for link-time optimizations (LTO)
-, ppl ? null, cloogppl ? null # optional, for the Graphite optimization framework
+, isl ? null # optional, for the Graphite optimization framework.
 , zlib ? null, boehmgc ? null
-, zip ? null, unzip ? null, pkgconfig ? null, gtk ? null, libart_lgpl ? null
+, zip ? null, unzip ? null, pkgconfig ? null
+, gtk ? null, libart_lgpl ? null
 , libX11 ? null, libXt ? null, libSM ? null, libICE ? null, libXtst ? null
 , libXrender ? null, xproto ? null, renderproto ? null, xextproto ? null
 , libXrandr ? null, libXi ? null, inputproto ? null, randrproto ? null
+, x11Support ? langJava
 , gnatboot ? null
 , enableMultilib ? false
+, enablePlugin ? true             # whether to support user-supplied plug-ins
 , name ? "gcc"
 , cross ? null
 , binutilsCross ? null
@@ -26,6 +32,8 @@
 , gnat ? null
 , libpthread ? null, libpthreadCross ? null  # required for GNU/Hurd
 , stripped ? true
+, gnused ? null
+, binutils ? null
 }:
 
 assert langJava     -> zip != null && unzip != null
@@ -37,10 +45,33 @@ assert langVhdl     -> gnat != null;
 # LTO needs libelf and zlib.
 assert libelf != null -> zlib != null;
 
+# Make sure we get GNU sed.
+assert stdenv.isDarwin -> gnused != null;
+
+# Need c++filt on darwin
+assert stdenv.isDarwin -> binutils != null;
+
+# The go frontend is written in c++
+assert langGo -> langCC;
+
 with stdenv.lib;
 with builtins;
 
-let version = "4.5.4";
+let version = "5.2.0";
+
+    # Whether building a cross-compiler for GNU/Hurd.
+    crossGNU = cross != null && cross.config == "i586-pc-gnu";
+
+    enableParallelBuilding = true;
+
+    patches = [ ]
+      ++ optional (cross != null) ../libstdc++-target.patch
+      ++ optional noSysDirs ../no-sys-dirs.patch
+      # The GNAT Makefiles did not pay attention to CFLAGS_FOR_TARGET for its
+      # target libraries and tools.
+      ++ optional langAda ../gnat-cflags.patch
+      ++ optional langFortran ../gfortran-driving.patch;
+
     javaEcj = fetchurl {
       # The `$(top_srcdir)/ecj.jar' file is automatically picked up at
       # `configure' time.
@@ -53,8 +84,8 @@ let version = "4.5.4";
     # Antlr (optional) allows the Java `gjdoc' tool to be built.  We want a
     # binary distribution here to allow the whole chain to be bootstrapped.
     javaAntlr = fetchurl {
-      url = http://www.antlr.org/download/antlr-3.1.3.jar;
-      sha256 = "1f41j0y4kjydl71lqlvr73yagrs2jsg1fjymzjz66mjy7al5lh09";
+      url = http://www.antlr.org/download/antlr-4.4-complete.jar;
+      sha256 = "02lda2imivsvsis8rnzmbrbp8rh1kb8vmq4i67pqhkwz7lf8y6dz";
     };
 
     xlibs = [
@@ -62,95 +93,136 @@ let version = "4.5.4";
       xproto renderproto xextproto inputproto randrproto
     ];
 
-    javaAwtGtk = langJava && gtk != null;
+    javaAwtGtk = langJava && x11Support;
+
+    /* Platform flags */
+    platformFlags = let
+        gccArch = stdenv.platform.gcc.arch or null;
+        gccCpu = stdenv.platform.gcc.cpu or null;
+        gccAbi = stdenv.platform.gcc.abi or null;
+        gccFpu = stdenv.platform.gcc.fpu or null;
+        gccFloat = stdenv.platform.gcc.float or null;
+        gccMode = stdenv.platform.gcc.mode or null;
+        withArch = if gccArch != null then " --with-arch=${gccArch}" else "";
+        withCpu = if gccCpu != null then " --with-cpu=${gccCpu}" else "";
+        withAbi = if gccAbi != null then " --with-abi=${gccAbi}" else "";
+        withFpu = if gccFpu != null then " --with-fpu=${gccFpu}" else "";
+        withFloat = if gccFloat != null then " --with-float=${gccFloat}" else "";
+        withMode = if gccMode != null then " --with-mode=${gccMode}" else "";
+      in
+        withArch +
+        withCpu +
+        withAbi +
+        withFpu +
+        withFloat +
+        withMode;
 
     /* Cross-gcc settings */
-    gccArch = stdenv.lib.attrByPath [ "gcc" "arch" ] null cross;
-    gccCpu = stdenv.lib.attrByPath [ "gcc" "cpu" ] null cross;
-    gccAbi = stdenv.lib.attrByPath [ "gcc" "abi" ] null cross;
-    withArch = if gccArch != null then " --with-arch=${gccArch}" else "";
-    withCpu = if gccCpu != null then " --with-cpu=${gccCpu}" else "";
-    withAbi = if gccAbi != null then " --with-abi=${gccAbi}" else "";
-    crossMingw = (cross != null && cross.libc == "msvcrt");
-
-    crossConfigureFlags =
-      "--target=${cross.config}" +
-      withArch +
-      withCpu +
-      withAbi +
-      (if crossMingw && crossStageStatic then
-        " --with-headers=${libcCross}/include" +
-        " --with-gcc" +
-        " --with-gnu-as" +
-        " --with-gnu-ld" +
-        " --with-gnu-ld" +
-        " --disable-shared" +
-        " --disable-nls" +
-        " --disable-debug" +
-        " --enable-sjlj-exceptions" +
-        " --enable-threads=win32" +
-        " --disable-win32-registry"
-        else if crossStageStatic then
-        " --disable-libssp --disable-nls" +
-        " --without-headers" +
-        " --disable-threads " +
-        " --disable-libmudflap " +
-        " --disable-libgomp " +
-        " --disable-shared" +
-        " --disable-decimal-float" # libdecnumber requires libc
-        else
-        " --with-headers=${libcCross}/include" +
-        " --enable-__cxa_atexit" +
-        " --enable-long-long" +
-        (if crossMingw then
-          " --enable-threads=win32" +
-          " --enable-sjlj-exceptions" +
-          " --enable-hash-synchronization" +
-          " --enable-version-specific-runtime-libs" +
-          " --disable-libssp" +
+    crossMingw = cross != null && cross.libc == "msvcrt";
+    crossDarwin = cross != null && cross.libc == "libSystem";
+    crossConfigureFlags = let
+        gccArch = stdenv.cross.gcc.arch or null;
+        gccCpu = stdenv.cross.gcc.cpu or null;
+        gccAbi = stdenv.cross.gcc.abi or null;
+        gccFpu = stdenv.cross.gcc.fpu or null;
+        gccFloat = stdenv.cross.gcc.float or null;
+        gccMode = stdenv.cross.gcc.mode or null;
+        withArch = if gccArch != null then " --with-arch=${gccArch}" else "";
+        withCpu = if gccCpu != null then " --with-cpu=${gccCpu}" else "";
+        withAbi = if gccAbi != null then " --with-abi=${gccAbi}" else "";
+        withFpu = if gccFpu != null then " --with-fpu=${gccFpu}" else "";
+        withFloat = if gccFloat != null then " --with-float=${gccFloat}" else "";
+        withMode = if gccMode != null then " --with-mode=${gccMode}" else "";
+      in
+        "--target=${cross.config}" +
+        withArch +
+        withCpu +
+        withAbi +
+        withFpu +
+        withFloat +
+        withMode +
+        (if crossMingw && crossStageStatic then
+          " --with-headers=${libcCross}/include" +
+          " --with-gcc" +
+          " --with-gnu-as" +
+          " --with-gnu-ld" +
+          " --with-gnu-ld" +
+          " --disable-shared" +
           " --disable-nls" +
-          " --with-dwarf2"
+          " --disable-debug" +
+          " --enable-sjlj-exceptions" +
+          " --enable-threads=win32" +
+          " --disable-win32-registry"
+          else if crossStageStatic then
+          " --disable-libssp --disable-nls" +
+          " --without-headers" +
+          " --disable-threads " +
+          " --disable-libgomp " +
+          " --disable-libquadmath" +
+          " --disable-shared" +
+          " --disable-libatomic " +  # libatomic requires libc
+          " --disable-decimal-float" # libdecnumber requires libc
           else
-          " --enable-threads=posix" +
-          " --enable-nls" +
-          " --disable-decimal-float") # No final libdecnumber (it may work only in 386)
-        );
-    stageNameAddon = if crossStageStatic then "-stage-static" else
-      "-stage-final";
+          (if crossDarwin then " --with-sysroot=${libcCross}/share/sysroot"
+           else                " --with-headers=${libcCross}/include") +
+          # Ensure that -print-prog-name is able to find the correct programs.
+          (stdenv.lib.optionalString (crossMingw || crossDarwin) (
+            " --with-as=${binutilsCross}/bin/${cross.config}-as" +
+            " --with-ld=${binutilsCross}/bin/${cross.config}-ld"
+          )) +
+          " --enable-__cxa_atexit" +
+          " --enable-long-long" +
+          (if crossMingw then
+            " --enable-threads=win32" +
+            " --enable-sjlj-exceptions" +
+            " --enable-hash-synchronization" +
+            " --disable-libssp" +
+            " --disable-nls" +
+            " --with-dwarf2" +
+            # I think noone uses shared gcc libs in mingw, so we better do the same.
+            # In any case, mingw32 g++ linking is broken by default with shared libs,
+            # unless adding "-lsupc++" to any linking command. I don't know why.
+            " --disable-shared" +
+            # To keep ABI compatibility with upstream mingw-w64
+            " --enable-fully-dynamic-string"
+            else (if cross.libc == "uclibc" then
+              # In uclibc cases, libgomp needs an additional '-ldl'
+              # and as I don't know how to pass it, I disable libgomp.
+              " --disable-libgomp" else "") +
+            " --enable-threads=posix" +
+            " --enable-nls" +
+            " --disable-decimal-float") # No final libdecnumber (it may work only in 386)
+          );
+    stageNameAddon = if crossStageStatic then "-stage-static" else "-stage-final";
     crossNameAddon = if cross != null then "-${cross.config}" + stageNameAddon else "";
+
+  bootstrap = cross == null && !stdenv.isArm && !stdenv.isMips;
 
 in
 
 # We need all these X libraries when building AWT with GTK+.
-assert gtk != null -> (filter (x: x == null) xlibs) == [];
+assert x11Support -> (filter (x: x == null) ([ gtk libart_lgpl ] ++ xlibs)) == [];
 
 stdenv.mkDerivation ({
-  name = "${name}-${version}" + crossNameAddon;
+  name = "${name}${if stripped then "" else "-debug"}-${version}" + crossNameAddon;
 
-  builder = ./builder.sh;
+  builder = ../builder.sh;
 
-  src = (import ./sources.nix) {
-    inherit fetchurl optional version;
-    inherit langC langCC langFortran langJava langAda;
+  outputs = [ "out" "info" ];
+
+  src = fetchurl {
+    url = "mirror://gnu/gcc/gcc-${version}/gcc-${version}.tar.bz2";
+    sha256 = "1bccp8a106xwz3wkixn65ngxif112vn90qf95m6lzpgpnl25p0sz";
   };
 
-  patches =
-    [ ]
-    ++ optional (cross != null) ../libstdc++-target.patch
-    ++ optional noSysDirs ./no-sys-dirs.patch
-    # The GNAT Makefiles did not pay attention to CFLAGS_FOR_TARGET for its
-    # target libraries and tools.
-    ++ optional langAda ../gnat-cflags.patch
-    ++ optional langVhdl ./ghdl-ortho-cflags.patch
-    ;
+  inherit patches;
 
   postPatch =
-    if (stdenv.system == "i586-pc-gnu"
+    if (stdenv.isGNU
         || (libcCross != null                  # e.g., building `gcc.crossDrv'
             && libcCross ? crossConfig
             && libcCross.crossConfig == "i586-pc-gnu")
-        || (cross != null && cross.config == "i586-pc-gnu"
-            && libcCross != null))
+        || (crossGNU && libcCross != null))
     then
       # On GNU/Hurd glibc refers to Hurd & Mach headers and libpthread is not
       # in glibc, so add the right `-I' flags to the default spec string.
@@ -158,7 +230,6 @@ stdenv.mkDerivation ({
       let
         libc = if libcCross != null then libcCross else stdenv.glibc;
         gnu_h = "gcc/config/gnu.h";
-        i386_gnu_h = "gcc/config/i386/gnu.h";
         extraCPPDeps =
              libc.propagatedBuildInputs
           ++ stdenv.lib.optional (libpthreadCross != null) libpthreadCross
@@ -171,8 +242,8 @@ stdenv.mkDerivation ({
           then "-L${libpthreadCross}/lib ${libpthreadCross.TARGET_LDFLAGS}"
           else "-L${libpthread}/lib";
       in
-        '' echo "augmenting \`CPP_SPEC' in \`${i386_gnu_h}' with \`${extraCPPSpec}'..."
-           sed -i "${i386_gnu_h}" \
+        '' echo "augmenting \`CPP_SPEC' in \`${gnu_h}' with \`${extraCPPSpec}'..."
+           sed -i "${gnu_h}" \
                -es'|CPP_SPEC *"\(.*\)$|CPP_SPEC "${extraCPPSpec} \1|g'
 
            echo "augmenting \`LIB_SPEC' in \`${gnu_h}' with \`${extraLibSpec}'..."
@@ -182,8 +253,6 @@ stdenv.mkDerivation ({
            echo "setting \`NATIVE_SYSTEM_HEADER_DIR' and \`STANDARD_INCLUDE_DIR' to \`${libc}/include'..."
            sed -i "${gnu_h}" \
                -es'|#define STANDARD_INCLUDE_DIR.*$|#define STANDARD_INCLUDE_DIR "${libc}/include"|g'
-           sed -i gcc/config/t-gnu \
-               -es'|NATIVE_SYSTEM_HEADER_DIR.*$|NATIVE_SYSTEM_HEADER_DIR = ${libc}/include|g'
         ''
     else if cross != null || stdenv.cc.libc != null then
       # On NixOS, use the right path to the dynamic linker instead of
@@ -202,29 +271,59 @@ stdenv.mkDerivation ({
         ''
     else null;
 
-  inherit noSysDirs profiledCompiler staticCompiler langJava crossStageStatic
+  inherit noSysDirs staticCompiler langJava crossStageStatic
     libcCross crossMingw;
 
-  nativeBuildInputs = [ texinfo which ]
-    ++ optional (perl != null) perl;
-    
-  buildInputs = [ gmp mpfr libmpc libelf gettext ]
-    ++ (optional (ppl != null) ppl)
-    ++ (optional (cloogppl != null) cloogppl)
+  nativeBuildInputs = [ texinfo which gettext ]
+    ++ (optional (perl != null) perl)
+    ++ (optional javaAwtGtk pkgconfig);
+
+  buildInputs = [ gmp mpfr libmpc libelf ]
+    ++ (optional (isl != null) isl)
     ++ (optional (zlib != null) zlib)
-    ++ (optional langJava boehmgc)
-    ++ (optionals langJava [zip unzip])
-    ++ (optionals javaAwtGtk ([gtk pkgconfig libart_lgpl] ++ xlibs))
+    ++ (optionals langJava [ boehmgc zip unzip ])
+    ++ (optionals javaAwtGtk ([ gtk libart_lgpl ] ++ xlibs))
     ++ (optionals (cross != null) [binutilsCross])
     ++ (optionals langAda [gnatboot])
     ++ (optionals langVhdl [gnat])
+
+    # The builder relies on GNU sed (for instance, Darwin's `sed' fails with
+    # "-i may not be used with stdin"), and `stdenvNative' doesn't provide it.
+    ++ (optional stdenv.isDarwin gnused)
+    ++ (optional stdenv.isDarwin binutils)
     ;
 
+  NIX_LDFLAGS = stdenv.lib.optionalString  stdenv.isSunOS "-lm -ldl";
+
+  preConfigure = stdenv.lib.optionalString (stdenv.isSunOS && stdenv.is64bit) ''
+    export NIX_LDFLAGS=`echo $NIX_LDFLAGS | sed -e s~$prefix/lib~$prefix/lib/amd64~g`
+    export LDFLAGS_FOR_TARGET="-Wl,-rpath,$prefix/lib/amd64 $LDFLAGS_FOR_TARGET"
+    export CXXFLAGS_FOR_TARGET="-Wl,-rpath,$prefix/lib/amd64 $CXXFLAGS_FOR_TARGET"
+    export CFLAGS_FOR_TARGET="-Wl,-rpath,$prefix/lib/amd64 $CFLAGS_FOR_TARGET"
+  '' + stdenv.lib.optionalString stdenv.isDarwin ''
+    if SDKROOT=$(/usr/bin/xcrun --show-sdk-path); then
+      configureFlagsArray+=(--with-native-system-header-dir=$SDKROOT/usr/include)
+      makeFlagsArray+=( \
+       CFLAGS_FOR_BUILD=-F$SDKROOT/System/Library/Frameworks \
+       CFLAGS_FOR_TARGET=-F$SDKROOT/System/Library/Frameworks \
+       FLAGS_FOR_TARGET=-F$SDKROOT/System/Library/Frameworks \
+      )
+    fi
+  '';
+
+  dontDisableStatic = true;
+
   configureFlags = "
-    ${if enableMultilib then "" else "--disable-multilib"}
+    ${if stdenv.isSunOS then
+      " --enable-long-long --enable-libssp --enable-threads=posix --disable-nls --enable-__cxa_atexit " +
+      # On Illumos/Solaris GNU as is preferred
+      " --with-gnu-as --without-gnu-ld "
+      else ""}
+    --enable-lto
+    ${if enableMultilib then "--enable-multilib --disable-libquadmath" else "--disable-multilib"}
     ${if enableShared then "" else "--disable-shared"}
-    ${if ppl != null then "--with-ppl=${ppl}" else ""}
-    ${if cloogppl != null then "--with-cloog=${cloogppl}" else ""}
+    ${if enablePlugin then "--enable-plugin" else "--disable-plugin"}
+    ${optionalString (isl != null) "--with-isl=${isl}"}
     ${if langJava then
       "--with-ecj-jar=${javaEcj} " +
 
@@ -241,6 +340,7 @@ stdenv.mkDerivation ({
     --disable-libstdcxx-pch
     --without-included-gettext
     --with-system-zlib
+    --enable-static
     --enable-languages=${
       concatStrings (intersperse ","
         (  optional langC        "c"
@@ -249,19 +349,46 @@ stdenv.mkDerivation ({
         ++ optional langJava     "java"
         ++ optional langAda      "ada"
         ++ optional langVhdl     "vhdl"
+        ++ optional langGo       "go"
+        ++ optional langObjC     "objc"
+        ++ optional langObjCpp   "obj-c++"
+        ++ optionals crossDarwin [ "objc" "obj-c++" ]
         )
       )
     }
-    ${ # Trick that should be taken out once we have a mips64el-linux not loongson2f
-      if cross == null && stdenv.system == "mips64el-linux" then "--with-arch=loongson2f" else ""}
+    ${if (stdenv ? glibc && cross == null)
+      then " --with-native-system-header-dir=${stdenv.glibc}/include"
+      else ""}
     ${if langAda then " --enable-libada" else ""}
     ${if cross == null && stdenv.isi686 then "--with-arch=i686" else ""}
     ${if cross != null then crossConfigureFlags else ""}
+    ${if !bootstrap then "--disable-bootstrap" else ""}
+    ${if cross == null then platformFlags else ""}
   ";
 
   targetConfig = if cross != null then cross.config else null;
 
-  crossAttrs = {
+  buildFlags = if bootstrap then
+    (if profiledCompiler then "profiledbootstrap" else "bootstrap")
+    else "";
+
+  installTargets =
+    if stripped
+    then "install-strip"
+    else "install";
+
+  crossAttrs = let
+    xgccArch = stdenv.cross.gcc.arch or null;
+    xgccCpu = stdenv.cross.gcc.cpu or null;
+    xgccAbi = stdenv.cross.gcc.abi or null;
+    xgccFpu = stdenv.cross.gcc.fpu or null;
+    xgccFloat = stdenv.cross.gcc.float or null;
+    xwithArch = if xgccArch != null then " --with-arch=${xgccArch}" else "";
+    xwithCpu = if xgccCpu != null then " --with-cpu=${xgccCpu}" else "";
+    xwithAbi = if xgccAbi != null then " --with-abi=${xgccAbi}" else "";
+    xwithFpu = if xgccFpu != null then " --with-fpu=${xgccFpu}" else "";
+    xwithFloat = if xgccFloat != null then " --with-float=${xgccFloat}" else "";
+  in {
     AR = "${stdenv.cross.config}-ar";
     LD = "${stdenv.cross.config}-ld";
     CC = "${stdenv.cross.config}-gcc";
@@ -277,8 +404,6 @@ stdenv.mkDerivation ({
     configureFlags = ''
       ${if enableMultilib then "" else "--disable-multilib"}
       ${if enableShared then "" else "--disable-shared"}
-      ${if ppl != null then "--with-ppl=${ppl.crossDrv}" else ""}
-      ${if cloogppl != null then "--with-cloog=${cloogppl.crossDrv}" else ""}
       ${if langJava then "--with-ecj-jar=${javaEcj.crossDrv}" else ""}
       ${if javaAwtGtk then "--enable-java-awt=gtk" else ""}
       ${if langJava && javaAntlr != null then "--with-antlr-jar=${javaAntlr.crossDrv}" else ""}
@@ -295,21 +420,27 @@ stdenv.mkDerivation ({
           ++ optional langJava     "java"
           ++ optional langAda      "ada"
           ++ optional langVhdl     "vhdl"
+          ++ optional langGo       "go"
           )
         )
       }
       ${if langAda then " --enable-libada" else ""}
-      ${if cross == null && stdenv.isi686 then "--with-arch=i686" else ""}
-      ${if cross != null then crossConfigureFlags else ""}
       --target=${stdenv.cross.config}
+      ${xwithArch}
+      ${xwithCpu}
+      ${xwithAbi}
+      ${xwithFpu}
+      ${xwithFloat}
     '';
+    buildFlags = "";
   };
- 
+
 
   # Needed for the cross compilation to work
   AR = "ar";
   LD = "ld";
-  CC = "gcc";
+  # http://gcc.gnu.org/install/specific.html#x86-64-x-solaris210
+  CC = if stdenv.system == "x86_64-solaris" then "gcc -m64" else "gcc";
 
   # Setting $CPATH and $LIBRARY_PATH to make sure both `gcc' and `xgcc' find
   # the library headers and binaries, regarless of the language being
@@ -333,8 +464,7 @@ stdenv.mkDerivation ({
 
                                    # On GNU/Hurd glibc refers to Mach & Hurd
                                    # headers.
-                                   ++ optionals (libcCross != null &&
-                                                 hasAttr "propagatedBuildInputs" libcCross)
+                                   ++ optionals (libcCross != null && libcCross ? "propagatedBuildInputs" )
                                         libcCross.propagatedBuildInputs)));
 
   LIBRARY_PATH = concatStrings
@@ -357,10 +487,12 @@ stdenv.mkDerivation ({
            " -L${libpthreadCross}/lib -Wl,${libpthreadCross.TARGET_LDFLAGS}")
     else null;
 
-  passthru = { inherit langC langCC langAda langFortran langVhdl
-      enableMultilib version; isGNU = true; };
+  passthru =
+    { inherit langC langCC langObjC langObjCpp langAda langFortran langVhdl langGo version; isGNU = true; };
 
-  enableParallelBuilding = !langAda;
+  inherit enableParallelBuilding enableMultilib;
+
+  inherit (stdenv) is64bit;
 
   meta = {
     homepage = http://gcc.gnu.org/;
@@ -377,22 +509,15 @@ stdenv.mkDerivation ({
       compiler used in the GNU system including the GNU/Linux variant.
     '';
 
-    maintainers = [
-      stdenv.lib.maintainers.viric
-    ];
+    maintainers = with stdenv.lib.maintainers; [ viric simons ];
 
-    # Volunteers needed for the {Cyg,Dar}win ports of *PPL.
     # gnatboot is not available out of linux platforms, so we disable the darwin build
     # for the gnat (ada compiler).
-    platforms = stdenv.lib.platforms.linux ++ optionals (langAda == false) [ "i686-darwin" ];
+    platforms =
+      stdenv.lib.platforms.linux ++
+      stdenv.lib.platforms.freebsd ++
+      optionals (langAda == false) stdenv.lib.platforms.darwin;
   };
-}
-
-// optionalAttrs (cross != null || libcCross != null) {
-  # `builder.sh' sets $CPP, which leads configure to use "gcc -E" instead of,
-  # say, "i586-pc-gnu-gcc -E" when building `gcc.crossDrv'.
-  # FIXME: Fix `builder.sh' directly in the next stdenv-update.
-  postUnpack = "unset CPP";
 }
 
 // optionalAttrs (cross != null && cross.libc == "msvcrt" && crossStageStatic) {
@@ -400,41 +525,8 @@ stdenv.mkDerivation ({
   installTargets = "install-gcc install-target-libgcc";
 }
 
-# GCC 4.5.2 doesn't support the `install-strip' target, so let `stdenv' do
-# the stripping by default.
-// optionalAttrs (!stripped) { dontStrip = true; }
+# Strip kills static libs of other archs (hence cross != null)
+// optionalAttrs (!stripped || cross != null) { dontStrip = true; NIX_STRIP_DEBUG = 0; }
 
-// optionalAttrs langVhdl rec {
-  name = "ghdl-0.29";
-
-  ghdlSrc = fetchurl {
-    url = "http://ghdl.free.fr/ghdl-0.29.tar.bz2";
-    sha256 = "15mlinr1lwljwll9ampzcfcrk9bk0qpdks1kxlvb70xf9zhh2jva";
-  };
-
-  # Ghdl has some timestamps checks, storing file timestamps in '.cf' files.
-  # As we will change the timestamps to 1970-01-01 00:00:01, we also set the
-  # content of that .cf to that value. This way ghdl does not complain on
-  # the installed object files from the basic libraries (ieee, ...)
-  postInstallGhdl = ''
-    pushd $out
-    find . -name "*.cf" -exec \
-        sed 's/[0-9]*\.000" /19700101000001.000" /g' -i {} \;
-    popd
-  '';
-
-  postUnpack = ''
-    tar xvf ${ghdlSrc}
-    mv ghdl-*/vhdl gcc*/gcc
-    rm -Rf ghdl-*
-  '';
-
-  meta = {
-    homepage = "http://ghdl.free.fr/";
-    license = stdenv.lib.licenses.gpl2Plus;
-    description = "Complete VHDL simulator, using the GCC technology (gcc ${version})";
-    maintainers = with stdenv.lib.maintainers; [viric];
-    platforms = with stdenv.lib.platforms; linux;
-  };
-
-})
+// optionalAttrs (enableMultilib) { dontMoveLib64 = true; }
+)
