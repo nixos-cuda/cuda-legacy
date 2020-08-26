@@ -1,8 +1,8 @@
 { stdenv, targetPackages, fetchurl, fetchpatch, noSysDirs
 , langC ? true, langCC ? true, langFortran ? false
+, langAda ? false
 , langObjC ? stdenv.targetPlatform.isDarwin
 , langObjCpp ? stdenv.targetPlatform.isDarwin
-, langJava ? false
 , langGo ? false
 , profiledCompiler ? false
 , langJit ? false
@@ -10,17 +10,12 @@
 , enableShared ? true
 , enableLTO ? true
 , texinfo ? null
-, perl ? null # optional, for texi2pod (then pod2man); required for Java
-, gmp, mpfr, libmpc, gettext, which, patchelf
+, perl ? null # optional, for texi2pod (then pod2man)
+, gmp, mpfr, libmpc, gettext, which
 , libelf                      # optional, for link-time optimizations (LTO)
-, cloog ? null, isl ? null # optional, for the Graphite optimization framework.
-, zlib ? null, boehmgc ? null
-, zip ? null, unzip ? null, pkgconfig ? null
-, gtk2 ? null, libart_lgpl ? null
-, libX11 ? null, libXt ? null, libSM ? null, libICE ? null, libXtst ? null
-, libXrender ? null, xorgproto ? null
-, libXrandr ? null, libXi ? null
-, x11Support ? langJava
+, isl ? null # optional, for the Graphite optimization framework.
+, zlib ? null
+, gnatboot ? null
 , enableMultilib ? false
 , enablePlugin ? stdenv.hostPlatform == stdenv.buildPlatform # Whether to support user-supplied plug-ins
 , name ? "gcc"
@@ -31,15 +26,9 @@
   stripped ? stdenv.hostPlatform == stdenv.buildPlatform
           && stdenv.targetPlatform == stdenv.hostPlatform
 , gnused ? null
+, cloog # unused; just for compat with gcc4, as we override the parameter on some places
 , buildPackages
 }:
-
-assert langJava     -> zip != null && unzip != null
-                       && zlib != null && boehmgc != null
-                       && perl != null;  # for `--enable-java-home'
-
-# We enable the isl cloog backend.
-assert cloog != null -> isl != null;
 
 # LTO needs libelf and zlib.
 assert libelf != null -> zlib != null;
@@ -49,6 +38,7 @@ assert stdenv.hostPlatform.isDarwin -> gnused != null;
 
 # The go frontend is written in c++
 assert langGo -> langCC;
+assert langAda -> gnatboot != null;
 
 # threadsCross is just for MinGW
 assert threadsCross != null -> stdenv.targetPlatform.isWindows;
@@ -56,50 +46,25 @@ assert threadsCross != null -> stdenv.targetPlatform.isWindows;
 with stdenv.lib;
 with builtins;
 
-let majorVersion = "4";
-    version = "${majorVersion}.8.5";
+let majorVersion = "10";
+    version = "${majorVersion}.1.0";
 
     inherit (stdenv) buildPlatform hostPlatform targetPlatform;
 
-    patches = [ ../parallel-bconfig.patch ]
-      ++ optional (targetPlatform != hostPlatform) ../libstdc++-target.patch
+    patches =
+         optional (targetPlatform != hostPlatform) ../libstdc++-target.patch
       ++ optional noSysDirs ../no-sys-dirs.patch
+      /* ++ optional (hostPlatform != buildPlatform) (fetchpatch { # XXX: Refine when this should be applied
+        url = "https://git.busybox.net/buildroot/plain/package/gcc/${version}/0900-remove-selftests.patch?id=11271540bfe6adafbc133caf6b5b902a816f5f02";
+        sha256 = ""; # TODO: uncomment and check hash when available.
+      }) */
+      ++ optional langAda ../gnat-cflags.patch
       ++ optional langFortran ../gfortran-driving.patch
-      ++ optional hostPlatform.isDarwin ../gfortran-darwin-NXConstStr.patch
-      ++ [(fetchpatch {
-          name = "libc_name_p.diff"; # needed to build with gcc6
-          url = "https://gcc.gnu.org/git/?p=gcc.git;a=commitdiff_plain;h=ec1cc0263f1";
-          sha256 = "01jd7pdarh54ki498g6sz64ijl9a1l5f9v8q2696aaxalvh2vwzl";
-          excludes = [ "gcc/cp/ChangeLog" ];
-        })]
-      ++ [ # glibc-2.26
-        ../struct-ucontext-4.8.patch
-        ../sigsegv-not-declared.patch
-        ../res_state-not-declared.patch
-      ];
-
-    javaEcj = fetchurl {
-      # The `$(top_srcdir)/ecj.jar' file is automatically picked up at
-      # `configure' time.
-
-      # XXX: Eventually we might want to take it from upstream.
-      url = "ftp://sourceware.org/pub/java/ecj-4.3.jar";
-      sha256 = "0jz7hvc0s6iydmhgh5h2m15yza7p2rlss2vkif30vm9y77m97qcx";
-    };
-
-    # Antlr (optional) allows the Java `gjdoc' tool to be built.  We want a
-    # binary distribution here to allow the whole chain to be bootstrapped.
-    javaAntlr = fetchurl {
-      url = "https://www.antlr.org/download/antlr-4.4-complete.jar";
-      sha256 = "02lda2imivsvsis8rnzmbrbp8rh1kb8vmq4i67pqhkwz7lf8y6dz";
-    };
-
-    xlibs = [
-      libX11 libXt libSM libICE libXtst libXrender libXrandr libXi
-      xorgproto
-    ];
-
-    javaAwtGtk = langJava && x11Support;
+      ++ optional (targetPlatform.libc == "musl" && targetPlatform.isPower) ../ppc-musl.patch
+      ++ optional (!crossStageStatic && targetPlatform.isMinGW) (fetchpatch {
+        url = "https://raw.githubusercontent.com/lhmouse/MINGW-packages/${import ../common/mfcgthreads-patches-repo.nix}/mingw-w64-gcc-git/9000-gcc-${majorVersion}-branch-Added-mcf-thread-model-support-from-mcfgthread.patch";
+        sha256 = "1in5kvcknlpi9z1vvjw6jfmwy8k12zvbqlqfnq84qpm99r0rh00a";
+      });
 
     /* Cross-gcc settings (build == host != target) */
     crossMingw = targetPlatform != hostPlatform && targetPlatform.libc == "msvcrt";
@@ -108,9 +73,6 @@ let majorVersion = "4";
 
 in
 
-# We need all these X libraries when building AWT with GTK.
-assert x11Support -> (filter (x: x == null) ([ gtk2 libart_lgpl ] ++ xlibs)) == [];
-
 stdenv.mkDerivation ({
   pname = "${crossNameAddon}${name}${if stripped then "" else "-debug"}";
   inherit version;
@@ -118,75 +80,101 @@ stdenv.mkDerivation ({
   builder = ../builder.sh;
 
   src = fetchurl {
-    url = "mirror://gnu/gcc/gcc-${version}/gcc-${version}.tar.bz2";
-    sha256 = "08yggr18v373a1ihj0rg2vd6psnic42b518xcgp3r9k81xz1xyr2";
+    url = "mirror://gcc/releases/gcc-${version}/gcc-${version}.tar.xz";
+    sha256 = "b6898a23844b656f1b68691c5c012036c2e694ac4b53a8918d4712ad876e7ea2";
   };
 
   inherit patches;
 
-  hardeningDisable = [ "format" "pie" ];
-
-  outputs = [ "out" "lib" "man" "info" ];
+  outputs = [ "out" "man" "info" ] ++ stdenv.lib.optional (!langJit) "lib";
   setOutputFlags = false;
   NIX_NO_SELF_RPATH = true;
 
   libc_dev = stdenv.cc.libc_dev;
 
-  postPatch =
+  hardeningDisable = [ "format" "pie" ];
+
+  # This should kill all the stdinc frameworks that gcc and friends like to
+  # insert into default search paths.
+  prePatch = stdenv.lib.optionalString hostPlatform.isDarwin ''
+    substituteInPlace gcc/config/darwin-c.c \
+      --replace 'if (stdinc)' 'if (0)'
+
+    substituteInPlace libgcc/config/t-slibgcc-darwin \
+      --replace "-install_name @shlib_slibdir@/\$(SHLIB_INSTALL_NAME)" "-install_name ''${!outputLib}/lib/\$(SHLIB_INSTALL_NAME)"
+
+    substituteInPlace libgfortran/configure \
+      --replace "-install_name \\\$rpath/\\\$soname" "-install_name ''${!outputLib}/lib/\\\$soname"
+  '';
+
+  postPatch = ''
+    configureScripts=$(find . -name configure)
+    for configureScript in $configureScripts; do
+      patchShebangs $configureScript
+    done
+  '' + (
     if targetPlatform != hostPlatform || stdenv.cc.libc != null then
       # On NixOS, use the right path to the dynamic linker instead of
       # `/lib/ld*.so'.
       let
         libc = if libcCross != null then libcCross else stdenv.cc.libc;
       in
-        '' echo "fixing the \`GLIBC_DYNAMIC_LINKER' and \`UCLIBC_DYNAMIC_LINKER' macros..."
+        (
+        '' echo "fixing the \`GLIBC_DYNAMIC_LINKER', \`UCLIBC_DYNAMIC_LINKER', and \`MUSL_DYNAMIC_LINKER' macros..."
            for header in "gcc/config/"*-gnu.h "gcc/config/"*"/"*.h
            do
-             grep -q LIBC_DYNAMIC_LINKER "$header" || continue
+             grep -q _DYNAMIC_LINKER "$header" || continue
              echo "  fixing \`$header'..."
              sed -i "$header" \
-                 -e 's|define[[:blank:]]*\([UCG]\+\)LIBC_DYNAMIC_LINKER\([0-9]*\)[[:blank:]]"\([^\"]\+\)"$|define \1LIBC_DYNAMIC_LINKER\2 "${libc.out}\3"|g'
+                 -e 's|define[[:blank:]]*\([UCG]\+\)LIBC_DYNAMIC_LINKER\([0-9]*\)[[:blank:]]"\([^\"]\+\)"$|define \1LIBC_DYNAMIC_LINKER\2 "${libc.out}\3"|g' \
+                 -e 's|define[[:blank:]]*MUSL_DYNAMIC_LINKER\([0-9]*\)[[:blank:]]"\([^\"]\+\)"$|define MUSL_DYNAMIC_LINKER\1 "${libc.out}\2"|g'
            done
         ''
-    else null;
+        + stdenv.lib.optionalString (targetPlatform.libc == "musl")
+        ''
+            sed -i gcc/config/linux.h -e '1i#undef LOCAL_INCLUDE_DIR'
+        ''
+        )
+    else "")
+      + stdenv.lib.optionalString targetPlatform.isAvr ''
+	        makeFlagsArray+=(
+	           'LIMITS_H_TEST=false'
+	        )
+	      '';
 
-  inherit noSysDirs staticCompiler langJava crossStageStatic
+  inherit noSysDirs staticCompiler crossStageStatic
     libcCross crossMingw;
 
   depsBuildBuild = [ buildPackages.stdenv.cc ];
   nativeBuildInputs = [ texinfo which gettext ]
-    ++ (optional (perl != null) perl)
-    ++ (optional javaAwtGtk pkgconfig);
+    ++ (optional (perl != null) perl);
 
   # For building runtime libs
   depsBuildTarget =
-    (
-      if hostPlatform == buildPlatform then [
-        targetPackages.stdenv.cc.bintools # newly-built gcc will be used
-      ] else assert targetPlatform == hostPlatform; [ # build != host == target
-        stdenv.cc
-      ]
-    )
-    ++ optional targetPlatform.isLinux patchelf;
+    if hostPlatform == buildPlatform then [
+      targetPackages.stdenv.cc.bintools # newly-built gcc will be used
+    ] else assert targetPlatform == hostPlatform; [ # build != host == target
+      stdenv.cc
+    ];
 
   buildInputs = [
     gmp mpfr libmpc libelf
     targetPackages.stdenv.cc.bintools # For linking code at run-time
-  ] ++ (optional (cloog != null) cloog)
-    ++ (optional (isl != null) isl)
+  ] ++ (optional (isl != null) isl)
     ++ (optional (zlib != null) zlib)
-    ++ (optionals langJava [ boehmgc zip unzip ])
-    ++ (optionals javaAwtGtk ([ gtk2 libart_lgpl ] ++ xlibs))
     # The builder relies on GNU sed (for instance, Darwin's `sed' fails with
     # "-i may not be used with stdin"), and `stdenvNative' doesn't provide it.
     ++ (optional hostPlatform.isDarwin gnused)
+    ++ (optional langAda gnatboot)
     ;
 
   depsTargetTarget = optional (!crossStageStatic && threadsCross != null) threadsCross;
 
+  NIX_LDFLAGS = stdenv.lib.optionalString  hostPlatform.isSunOS "-lm -ldl";
+
   preConfigure = import ../common/pre-configure.nix {
     inherit (stdenv) lib;
-    inherit version hostPlatform langJava langGo;
+    inherit version hostPlatform gnatboot langAda langGo;
   };
 
   dontDisableStatic = true;
@@ -202,7 +190,6 @@ stdenv.mkDerivation ({
       version
 
       gmp mpfr libmpc libelf isl
-      cloog
 
       enableLTO
       enableMultilib
@@ -212,7 +199,7 @@ stdenv.mkDerivation ({
       langC
       langCC
       langFortran
-      langJava javaAwtGtk javaAntlr javaEcj
+      langAda
       langGo
       langObjC
       langObjCpp
@@ -228,8 +215,6 @@ stdenv.mkDerivation ({
 
   dontStrip = !stripped;
 
-  doCheck = false; # requires a lot of tools, causes a dependency cycle for stdenv
-
   installTargets = optional stripped "install-strip";
 
   # https://gcc.gnu.org/install/specific.html#x86-64-x-solaris210
@@ -237,11 +222,6 @@ stdenv.mkDerivation ({
 
   # Setting $CPATH and $LIBRARY_PATH to make sure both `gcc' and `xgcc' find the
   # library headers and binaries, regarless of the language being compiled.
-  #
-  # Note: When building the Java AWT GTK peer, the build system doesn't honor
-  # `--with-gmp' et al., e.g., when building
-  # `libjava/classpath/native/jni/java-math/gnu_java_math_GMP.c', so we just add
-  # them to $CPATH and $LIBRARY_PATH in this case.
   #
   # Likewise, the LTO code doesn't find zlib.
   #
@@ -251,17 +231,9 @@ stdenv.mkDerivation ({
 
   CPATH = optionals (targetPlatform == hostPlatform) (makeSearchPathOutput "dev" "include" ([]
     ++ optional (zlib != null) zlib
-    ++ optional langJava boehmgc
-    ++ optionals javaAwtGtk xlibs
-    ++ optionals javaAwtGtk [ gmp mpfr ]
   ));
 
-  LIBRARY_PATH = optionals (targetPlatform == hostPlatform) (makeLibraryPath ([]
-    ++ optional (zlib != null) zlib
-    ++ optional langJava boehmgc
-    ++ optionals javaAwtGtk xlibs
-    ++ optionals javaAwtGtk [ gmp mpfr ]
-  ));
+  LIBRARY_PATH = optionals (targetPlatform == hostPlatform) (makeLibraryPath (optional (zlib != null) zlib));
 
   inherit
     (import ../common/extra-target-flags.nix {
@@ -272,9 +244,8 @@ stdenv.mkDerivation ({
     ;
 
   passthru = {
-    inherit langC langCC langObjC langObjCpp langFortran langGo version;
+    inherit langC langCC langObjC langObjCpp langAda langFortran langGo version;
     isGNU = true;
-    hardeningUnsupportedFlags = [ "stackprotector" ];
   };
 
   enableParallelBuilding = true;
@@ -290,21 +261,20 @@ stdenv.mkDerivation ({
 
     longDescription = ''
       The GNU Compiler Collection includes compiler front ends for C, C++,
-      Objective-C, Fortran, OpenMP for C/C++/Fortran, Java, and Ada, as well
-      as libraries for these languages (libstdc++, libgcj, libgomp,...).
+      Objective-C, Fortran, OpenMP for C/C++/Fortran, and Ada, as well as
+      libraries for these languages (libstdc++, libgomp,...).
 
       GCC development is a part of the GNU Project, aiming to improve the
       compiler used in the GNU system including the GNU/Linux variant.
     '';
 
-    maintainers = with stdenv.lib.maintainers; [ peti veprbl ];
+    maintainers = with stdenv.lib.maintainers; [ synthetica ];
 
     platforms =
       stdenv.lib.platforms.linux ++
       stdenv.lib.platforms.freebsd ++
       stdenv.lib.platforms.illumos ++
       stdenv.lib.platforms.darwin;
-    badPlatforms = [ "x86_64-darwin" ];
   };
 }
 
