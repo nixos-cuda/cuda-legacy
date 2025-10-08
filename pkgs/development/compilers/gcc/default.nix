@@ -243,7 +243,6 @@ pipe
 
       hardeningDisable = [
         "format"
-        "pie"
         "stackclashprotection"
       ]
       ++ optionals (is11 && langAda) [ "fortify3" ];
