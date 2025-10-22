@@ -19,7 +19,8 @@
       inputs =
         let
           defaults = {
-            nixpkgs = builtins.getFlake "github:NixOS/nixpkgs/bf0d1707ba1e12471a0b554013187e0c5b74f779";
+            # Nixpkgs is tracking https://github.com/NixOS/nixpkgs/pull/437723/commits
+            nixpkgs = builtins.getFlake "github:NixOS/nixpkgs/8af89d087539c7e161df2f14ecfdb76f4cf66241";
             flake-parts = builtins.getFlake "github:hercules-ci/flake-parts/864599284fc7c0ba6357ed89ed5e2cd5040f0c04";
           };
 

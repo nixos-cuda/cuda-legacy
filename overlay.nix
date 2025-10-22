@@ -22,16 +22,37 @@ final: prev: {
   gcc12Stdenv = final.overrideCC final.gccStdenv final.buildPackages.gcc12;
 
   # Only include cuda package sets which have been removed upstream.
-  cudaPackages_11_0 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.0"; };
-  cudaPackages_11_1 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.1"; };
-  cudaPackages_11_2 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.2"; };
-  cudaPackages_11_3 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.3"; };
-  cudaPackages_11_4 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.4"; };
-  cudaPackages_11_5 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.5"; };
-  cudaPackages_11_6 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.6"; };
-  cudaPackages_11_7 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.7"; };
-  cudaPackages_11_8 = final.callPackage ./pkgs/top-level/cuda-packages.nix { cudaVersion = "11.8"; };
-  cudaPackages_11 = final.lib.recurseIntoAttrs final.cudaPackages_11_8;
+  # Top-level fix-point used in `cudaPackages`' internals
+  # NOTE: This differs from upstream in that we must pass `lib` explicitly because we do not have it in-tree.
+  _cuda = import ./pkgs/development/cuda-modules/_cuda { inherit (final) lib; };
 
-  cudatoolkit_11 = final.cudaPackages_11.cudatoolkit;
+  inherit
+    (import ./pkgs/top-level/cuda-packages.nix {
+      inherit (final)
+        _cuda
+        callPackage
+        config
+        lib
+        ;
+    })
+    cudaPackages_11_4
+    cudaPackages_11_5
+    cudaPackages_11_6
+    cudaPackages_11_7
+    cudaPackages_11_8
+    cudaPackages_12_0
+    cudaPackages_12_1
+    cudaPackages_12_2
+    cudaPackages_12_3
+    cudaPackages_12_4
+    cudaPackages_12_5
+    cudaPackages_12_6
+    cudaPackages_12_8
+    cudaPackages_12_9
+    cudaPackages_13_0
+    ;
+
+    cudaPackages_11 = final.lib.recurseIntoAttrs final.cudaPackages_11_8;
+    cudaPackages_12 = final.lib.recurseIntoAttrs final.cudaPackages_12_9;
+    cudaPackages_13 = final.lib.recurseIntoAttrs final.cudaPackages_13_0;
 }

@@ -1,0 +1,71 @@
+{
+    "release_date": "2025-10-01",
+    "release_label": "0.7.0",
+    "release_product": "cudss",
+    "libcudss": {
+        "name": "NVIDIA cuDSS library",
+        "license": "cuDSS library",
+        "license_path": "libcudss/LICENSE.txt",
+        "version": "0.7.0.20",
+        "linux-x86_64": {
+            "cuda12": {
+                "relative_path": "libcudss/linux-x86_64/libcudss-linux-x86_64-0.7.0.20_cuda12-archive.tar.xz",
+                "sha256": "c98d5ef87e8b6a356b21a678715033b19620ce58b5fa64c97e25e6d3e76e42dc",
+                "md5": "a96db7570371f8f73e9b6c49de09670a",
+                "size": "118232356"
+            },
+            "cuda13": {
+                "relative_path": "libcudss/linux-x86_64/libcudss-linux-x86_64-0.7.0.20_cuda13-archive.tar.xz",
+                "sha256": "939606e8d062ee0fc28094e7be19e22191662e8593bc7f5eec16220ad836feb9",
+                "md5": "8577dc1224bb3af7f6907edb05dfa764",
+                "size": "125747004"
+            }
+        },
+        "cuda_variant": [
+            "12",
+            "13"
+        ],
+        "linux-sbsa": {
+            "cuda12": {
+                "relative_path": "libcudss/linux-sbsa/libcudss-linux-sbsa-0.7.0.20_cuda12-archive.tar.xz",
+                "sha256": "92f3425e7badcd2d6324efbe8c7ca314a36295ab550238f7772137c3652d7884",
+                "md5": "ef8d7b6eadfca9318a9660244df8fb90",
+                "size": "115069352"
+            },
+            "cuda13": {
+                "relative_path": "libcudss/linux-sbsa/libcudss-linux-sbsa-0.7.0.20_cuda13-archive.tar.xz",
+                "sha256": "f915eb581ab965d0baa74cd1e529086fce00e9d14d9366da4480b5ef7fabb8a6",
+                "md5": "937a983e60c104e9ac091e2c8793d059",
+                "size": "125276576"
+            }
+        },
+        "windows-x86_64": {
+            "cuda12": {
+                "relative_path": "libcudss/windows-x86_64/libcudss-windows-x86_64-0.7.0.20_cuda12-archive.zip",
+                "sha256": "69b7e5dc98f2d6242eb8e072d7a73e1f573d8a1bb65d97463ba72e9334d67f58",
+                "md5": "ac796537cca95c2cc02f263663fe3a20",
+                "size": "70447263"
+            },
+            "cuda13": {
+                "relative_path": "libcudss/windows-x86_64/libcudss-windows-x86_64-0.7.0.20_cuda13-archive.zip",
+                "sha256": "a35f34a1995b5951cfe5b625e17d33ebe0e7e487476b5315a229cf348dcc2c0b",
+                "md5": "0636b4386c25ae6d44ff6acb6eb27703",
+                "size": "71438913"
+            }
+        },
+        "linux-aarch64": {
+            "cuda12": {
+                "relative_path": "libcudss/linux-aarch64/libcudss-linux-aarch64-0.7.0.20_cuda12-archive.tar.xz",
+                "sha256": "ce3de5e6a0cee00fd1fc355881308ef0c692c6e14b6a5625aa35a7f9df98b846",
+                "md5": "61b585bb766978dc3ab9a0c90d148361",
+                "size": "38424644"
+            },
+            "cuda13": {
+                "relative_path": "libcudss/linux-aarch64/libcudss-linux-aarch64-0.7.0.20_cuda13-archive.tar.xz",
+                "sha256": "c33768ac50caa36103facfec21a32b2c65ed1f1f085eaf153091dcaf734fdfc6",
+                "md5": "19ad4e24a0549eb31ad566eb3f2a3087",
+                "size": "63333948"
+            }
+        }
+    }
+}

@@ -9,8 +9,8 @@
     { pkgs, system, ... }:
     {
       _module.args.pkgs = import inputs.nixpkgs {
-        config = {
-          allowUnfree = true;
+        config = {pkgs}: {
+          allowUnfreePredicate = pkgs._cuda.lib.allowUnfreeCudaPredicate;
           cudaSupport = true;
         };
         localSystem = { inherit system; };
