@@ -1,4 +1,4 @@
-{ lib, pkgs }:
+args@{ lib, pkgs }:
 let
   recursiveMapPackages =
     let
@@ -17,12 +17,13 @@ let
     );
 
   pkgsFor =
-    cudaPackageSet:
+    cudaPackageSetName:
     let
-      pkgs' = pkgs.extend (final: _: { cudaPackages = final.${cudaPackageSet}; });
+      # `pkgs` is an instance of Nixpkgs where the enclosing CUDA package set is the default version.
+      inherit (args.pkgs.${cudaPackageSetName}) pkgs;
     in
     recursiveMapPackages {
-      inherit (pkgs')
+      inherit (pkgs)
         blas
         blender
         cctag # Failed in https://github.com/NixOS/nixpkgs/pull/233581
@@ -63,20 +64,18 @@ let
         xgboost
         ;
 
-      cudaPackages = lib.recurseIntoAttrs pkgs'.cudaPackages // {
-        pkgs = lib.dontRecurseIntoAttrs pkgs'.cudaPackages.pkgs;
-      };
+      cudaPackages = lib.recurseIntoAttrs pkgs.cudaPackages;
 
       gst_all_1 = lib.recurseIntoAttrs {
-        inherit (pkgs'.gst_all_1) gst-plugins-bad;
+        inherit (pkgs.gst_all_1) gst-plugins-bad;
       };
 
       obs-studio-plugins = lib.recurseIntoAttrs {
-        inherit (pkgs'.obs-studio-plugins) obs-backgroundremoval;
+        inherit (pkgs.obs-studio-plugins) obs-backgroundremoval;
       };
 
       python3Packages = lib.recurseIntoAttrs {
-        inherit (pkgs'.python3Packages)
+        inherit (pkgs.python3Packages)
           catboost
           cupy
           faiss
@@ -121,12 +120,12 @@ let
 
   # NOTE: Not all packages are written to support earlier CUDA versions.
   # For example, cupy needs the CUDA profiler API, which isn't available in early versions.
-  cudaPackageSets = [
-    # "cudaPackages_11_4"
-    # "cudaPackages_11_5"
-    # "cudaPackages_11_6"
-    # "cudaPackages_11_7"
+  # NOTE: Our overlays do not change the major-versioned or unversioned package sets (e.g., cudaPackages_12,
+  # cudaPackages).
+  cudaPackageSetNames = [
     "cudaPackages_11_8"
+    "cudaPackages_12_2"
+    "cudaPackages_12_6"
   ];
 in
-lib.genAttrs cudaPackageSets pkgsFor
+lib.genAttrs cudaPackageSetNames pkgsFor

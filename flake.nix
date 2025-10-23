@@ -13,15 +13,19 @@
     nixpkgs.follows = "";
   };
 
+  # NOTE: As a consequence of pushing down use of the flake-parts input, but must stick to builtins in constructing
+  # `outputs` instead of using flake-parts.inputs.nixpkgs-lib.lib.
   outputs =
     _inputs:
     let
+      inherit (builtins) getFlake mapAttrs;
+
       inputs =
         let
           defaults = {
             # Nixpkgs is tracking https://github.com/NixOS/nixpkgs/pull/437723/commits
-            nixpkgs = builtins.getFlake "github:NixOS/nixpkgs/8af89d087539c7e161df2f14ecfdb76f4cf66241";
-            flake-parts = builtins.getFlake "github:hercules-ci/flake-parts/864599284fc7c0ba6357ed89ed5e2cd5040f0c04";
+            nixpkgs = getFlake "github:NixOS/nixpkgs/8af89d087539c7e161df2f14ecfdb76f4cf66241";
+            flake-parts = getFlake "github:hercules-ci/flake-parts/864599284fc7c0ba6357ed89ed5e2cd5040f0c04";
           };
 
           # If processing self or an input distinct from self, pass it through.
@@ -30,9 +34,12 @@
             self: name: value:
             if name == "self" || self.narHash != value.narHash then value else defaults.${name};
         in
-        builtins.mapAttrs (inputOrDefault _inputs.self) _inputs;
+        mapAttrs (inputOrDefault _inputs.self) _inputs;
 
-      overlays.default = import ./overlay.nix;
+      # NOTE: None of these overlays change the default version of any package sets;
+      # For example, including `overlays.cudaPackages_11_4` will not set `cudaPackages_11` or `cudaPackages`;
+      # it only replaces `cudaPackages_11_4`.
+      overlays = import ./overlays;
 
       flake = inputs.flake-parts.lib.mkFlake { inherit inputs; } {
         # Required but can be empty -- this is set by the various sub-flake-modules.
@@ -50,30 +57,22 @@
           checks = "dev";
           formatter = "dev";
 
-          hydraJobs = "hydraJobs";
-
-          legacyPackages = "legacyPackages";
+          hydraJobs = "ci";
+          legacyPackages = "ci";
         };
 
         partitions = {
           # `dev` includes formatters and linters.
-          # `dev` instantiates its own copy of Nixpkgs and does not use the one provided by
-          # the `legacyPackages` partition.
           dev = {
             extraInputs = { inherit (inputs) nixpkgs; };
             extraInputsFlake = ./dev;
             module = ./dev/flakeModule.nix;
           };
 
-          # `hydraJobs` includes Hydra jobsets.
-          # `hydraJobs` uses the copy of Nixpkgs configured by the `legacyPackages` partition.
-          hydraJobs.module = ./hydraJobs/flakeModule.nix;
-
-          # `legacyPackages` sets `_modules.args.pkgs` and exposes it as `legacyPackages`.
-          # Partitions other than `dev` re-use the instance (or at least, the instantiation logic).
-          legacyPackages = {
+          # `ci` sets `_modules.args.pkgs`, exposes it as `legacyPackages`, and include Hydra jobsets.
+          ci = {
             extraInputs = { inherit (inputs) nixpkgs; };
-            module = ./legacyPackages/flakeModule.nix;
+            module = ./ci/flakeModule.nix;
           };
         };
       };
