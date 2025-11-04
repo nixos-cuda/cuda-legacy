@@ -77,7 +77,7 @@
       };
     in
     {
-      inherit overlays;
+      inherit inputs overlays;
       inherit (flake)
         checks
         formatter
