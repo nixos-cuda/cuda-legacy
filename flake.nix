@@ -23,7 +23,7 @@
       inputs =
         let
           defaults = {
-            nixpkgs = getFlake "github:NixOS/nixpkgs/d749418ffa2746d7f6e2d710b173f4f7088cfe02";
+            nixpkgs = getFlake "github:NixOS/nixpkgs/c4efd683cf02958ebb2111603de84abe3f89de3f";
             flake-parts = getFlake "github:hercules-ci/flake-parts/0010412d62a25d959151790968765a70c436598b";
           };
 
