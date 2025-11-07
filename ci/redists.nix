@@ -1,4 +1,7 @@
 {
+  # The name of the redistributable for which to evaluate all combinations.
+  redistName,
+
   # The platforms supported by the NixOS-CUDA Hydra instance
   supportedSystems ? [
     "x86_64-linux"
@@ -15,78 +18,53 @@
   nixpkgs ? null,
 }@args:
 let
-  # A self-reference to this flake to get overlays
-  self = builtins.getFlake (builtins.toString ../.);
-
-  # Lib for later usage
-  inherit (self.outputs.inputs.nixpkgs) lib;
-
-  cudaLib =
-    (import (
-      args.nixpkgs or self.outputs.inputs.nixpkgs.outPath + "/pkgs/development/cuda-modules/_cuda/"
-    )).lib;
+  inherit
+    (import ./common.nix (removeAttrs args [ "redistName" ] // { extraOverlays = [ redistOverlay ]; }))
+    lib # NOTE: lib doesn't depend on extraOverlays so we can use it to construct redistOverlay.
+    releaseLib
+    ;
 
   inherit (lib)
     attrNames
-    mapAttrs'
-    recurseIntoAttrs
     concatMapAttrs
-    optionalAttrs
-    hasAttr
     genAttrs
-    genAttrs'
+    hasAttr
+    mapAttrs'
+    optionalAttrs
+    recurseIntoAttrs
     ;
 
-  # Get the manifests
-  manifests = import ../pkgs/development/cuda-modules/_cuda/manifests { inherit lib; };
-
   # NOTE: Assumes redist is stand-alone -- that it does not depend on other redistributables.
-  # TODO: Use the extraOverlays argument to common.nix to add to _cuda.extensions all of the versioned attributes we care about.
-  # Then we just need to provide the skeleton with attribute names of the values we want to extract via releaseLib.mapTestOn.
-  mkRedistPackages =
-    redistName:
-    # NOTE: Manifest version is different from the release version of a package.
-    let
-      redistVersions = attrNames manifests.${redistName};
-
-      redistVersionOverlay =
-        finalCudaPackages: prevCudaPackages:
-        mapAttrs' (redistVersion: redistManifest: {
-          name = cudaLib.mkVersionedName redistName redistVersion;
-          value = recurseIntoAttrs (
-            concatMapAttrs (
-              name: release:
-              # Filter for supported packages and releases
-              optionalAttrs (hasAttr name prevCudaPackages) {
-                ${name} = finalCudaPackages.${name}.overrideAttrs (prevAttrs: {
-                  # Our src depends on version.
-                  __intentionallyOverridingVersion = true;
-
-                  inherit (release) version;
-
-                  passthru = prevAttrs.passthru // {
-                    inherit release;
-                  };
-                });
-              }
-            ) redistManifest
-          );
-        }) manifests.${redistName};
-
-      inherit
-        (import ./common.nix (
-          args
-          // {
-            extraOverlays = [ redistVersionOverlay ];
-          }
-        ))
-        cudaPackageSetNames
-        releaseLib
-        ;
-    in
-    # TODO: Finish implementation/tidy up attribute paths.
-    releaseLib.mapTestOn (genAttrs cudaPackageSetNames (cudaPackageSetName: [ ]));
+  redistOverlay =
+    final: prev:
+    genAttrs (attrNames prev.cudaPackagesVersions) (
+      cudaPackageSetName:
+      let
+        cudaPackages = prev.${cudaPackageSetName};
+      in
+      # Replace each instance of the CUDA package set with just the redists we care about.
+      mapAttrs' (redistVersion: redistManifest: {
+        name = prev._cuda.lib.mkVersionedName redistName redistVersion;
+        value = recurseIntoAttrs (
+          concatMapAttrs (
+            name: release:
+            # Filter for supported packages and releases
+            optionalAttrs (hasAttr name cudaPackages) {
+              ${name} = cudaPackages.${name}.overrideAttrs (prevAttrs: {
+                passthru = prevAttrs.passthru // {
+                  inherit release;
+                };
+              });
+            }
+          ) redistManifest
+        );
+      }) prev._cuda.manifests.${redistName}
+    );
 in
-{
-  cudnn = mkRedistPackages "cudnn";
-}
+releaseLib.mapTestOn (
+  releaseLib.packagePlatforms (
+    genAttrs (attrNames releaseLib.pkgs.cudaPackagesVersions) (
+      cudaPackageSetName: recurseIntoAttrs releaseLib.pkgs.${cudaPackageSetName}
+    )
+  )
+)
