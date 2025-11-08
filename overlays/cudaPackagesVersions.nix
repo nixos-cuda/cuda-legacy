@@ -179,7 +179,7 @@ final: prev: {
 
       cudaPackages_13_0 =
         let
-          inherit (final.cudaPackagesVersions.cudaPackages_13_0.backendStdenv) hasJetsonCudaCapability;
+          inherit (final.cudaPackagesVersions.cudaPackages_13_0.backendStdenv) hostRedistSystem;
         in
         mkCudaPackages {
           cublasmp = "0.6.0";
@@ -195,7 +195,8 @@ final: prev: {
           nvjpeg2000 = "0.9.0";
           nvpl = "25.5";
           nvtiff = "0.5.1";
-          tensorrt = if hasJetsonCudaCapability then "10.7.0" else "10.9.0";
+          # If using Jetson prior to Thor, use 10.7.0, otherwise use the latest.
+          tensorrt = if hostRedistSystem == "linux-aarch64" then "10.7.0" else "10.14.1";
         };
     };
 }
