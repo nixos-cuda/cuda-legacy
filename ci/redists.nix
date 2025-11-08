@@ -43,6 +43,9 @@ let
         cudaPackages = prev.${cudaPackageSetName};
       in
       # Replace each instance of the CUDA package set with just the redists we care about.
+      # TODO(@connorbaker): Replacing the entire package set breaks evaluation of redists which depend on other
+      # packages; for example, libcublasmp breaks because it depends on ucc and we get a missing attribute
+      # exception when ucc tries to access cudaPackages.backendStdenv.
       mapAttrs' (redistVersion: redistManifest: {
         name = prev._cuda.lib.mkVersionedName redistName redistVersion;
         value = recurseIntoAttrs (
@@ -62,9 +65,5 @@ let
     );
 in
 releaseLib.mapTestOn (
-  releaseLib.packagePlatforms (
-    genAttrs (attrNames releaseLib.pkgs.cudaPackagesVersions) (
-      cudaPackageSetName: recurseIntoAttrs releaseLib.pkgs.${cudaPackageSetName}
-    )
-  )
+  lib.mapAttrs (lib.const releaseLib.packagePlatforms) releaseLib.pkgs.cudaPackagesVersions
 )
