@@ -19,6 +19,7 @@ buildRedist (
 
     # Create variables and use logical OR to allow short-circuiting.
 
+    cublasmpAtLeast050 = cublasmpAtLeast "0.5.0";
     cublasmpAtLeast060 = cublasmpAtLeast "0.6.0";
     cublasmpOlder080 = cublasmpOlder "0.8.0";
 
@@ -37,17 +38,23 @@ buildRedist (
       "lib"
     ];
 
-    buildInputs =
-      lib.optionals (!cublasmpAtLeast "0.5.0") [
-        libcal
-      ]
-      ++ lib.optionals cublasmpOlder080 [
-        libnvshmem
-      ]
-      ++ [
-        libcublas
-        nccl
-      ];
+    buildInputs = [
+      libcublas
+    ]
+    ++ lib.optionals (!cublasmpAtLeast050) [
+      libcal
+    ]
+    # TODO(@connorbaker): NVIDIA's release notes claim a dependency on NVSHMEM was introduced in 0.3.0:
+    # https://docs.nvidia.com/cuda/cublasmp/release_notes/index.html#cublasmp-v0-3-0
+    # autoPatchelfHook doesn't find it, so we ignore it (same for NCCL). Instead, we include them from the version
+    # the hook starts failing with missing dependencies -- 0.5.0.
+    # As an additional followup, we should find out which versions of NVSHMEM/NCCL are supported pre-0.5.0.
+    ++ lib.optionals (cublasmpAtLeast050 && cublasmpOlder080) [
+      libnvshmem
+    ]
+    ++ lib.optionals cublasmpAtLeast050 [
+      nccl
+    ];
 
     autoPatchelfIgnoreMissingDeps = [
       "libcuda.so.1"
@@ -67,16 +74,16 @@ buildRedist (
     brokenAssertions = [
       {
         message =
-          "cuBLASMp releases from 0.6.0 until 0.8.0 (found ${finalAttrs.version})"
+          "cuBLASMp releases from 0.5.0 until 0.8.0 (found ${finalAttrs.version})"
           + " require NVSHMEM 3.3.24 and later (found ${libnvshmem.version})";
         assertion =
-          (cublasmpAtLeast060 && cublasmpOlder080) -> lib.versionAtLeast libnvshmem.version "3.3.24";
+          (cublasmpAtLeast050 && cublasmpOlder080) -> lib.versionAtLeast libnvshmem.version "3.3.24";
       }
       {
         message =
-          "cuBLASMp releases since 0.6.0 (found ${finalAttrs.version})"
+          "cuBLASMp releases since 0.5.0 (found ${finalAttrs.version})"
           + " require NCCL 2.24.3 and later (found ${nccl.version})";
-        assertion = cublasmpAtLeast060 -> lib.versionAtLeast nccl.version "2.24.3";
+        assertion = cublasmpAtLeast050 -> lib.versionAtLeast nccl.version "2.24.3";
       }
     ];
 
