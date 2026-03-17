@@ -15,10 +15,12 @@ buildRedist (
   let
     inherit (backendStdenv) cudaCapabilities;
     cublasmpAtLeast = lib.versionAtLeast finalAttrs.version;
+    cublasmpOlder = lib.versionOlder finalAttrs.version;
 
     # Create variables and use logical OR to allow short-circuiting.
 
     cublasmpAtLeast060 = cublasmpAtLeast "0.6.0";
+    cublasmpOlder080 = cublasmpOlder "0.8.0";
 
     allCCNewerThan80 = lib.all (lib.flip lib.versionAtLeast "8.0") cudaCapabilities;
     allCCNewerThan75 = allCCNewerThan80 || lib.all (lib.flip lib.versionAtLeast "7.5") cudaCapabilities;
@@ -39,9 +41,11 @@ buildRedist (
       lib.optionals (!cublasmpAtLeast "0.5.0") [
         libcal
       ]
+      ++ lib.optionals (cublasmpAtLeast060 && cublasmpOlder080) [
+        libnvshmem
+      ]
       ++ [
         libcublas
-        libnvshmem
         nccl
       ];
 
@@ -53,7 +57,7 @@ buildRedist (
     #
     #   As of this writing, NVIDIA doesn't version their documentation for cublasmp
     #   (https://docs.nvidia.com/cuda/cublasmp/getting_started/index.html). As such, the requirements below come from
-    #   the 0.6.0 version of the documentation and whatever can be gleaned from the release notes for prior versions.
+    #   the 0.8.0 version of the documentation and whatever can be gleaned from the release notes for prior versions.
     #
     # NOTE:
     #
@@ -63,9 +67,10 @@ buildRedist (
     brokenAssertions = [
       {
         message =
-          "cuBLASMp releases since 0.6.0 (found ${finalAttrs.version})"
+          "cuBLASMp releases from 0.6.0 until 0.8.0 (found ${finalAttrs.version})"
           + " require NVSHMEM 3.3.24 and later (found ${libnvshmem.version})";
-        assertion = cublasmpAtLeast060 -> lib.versionAtLeast libnvshmem.version "3.3.24";
+        assertion =
+          (cublasmpAtLeast060 && cublasmpOlder080) -> lib.versionAtLeast libnvshmem.version "3.3.24";
       }
       {
         message =
