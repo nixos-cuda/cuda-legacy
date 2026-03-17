@@ -41,7 +41,7 @@ buildRedist (
       lib.optionals (!cublasmpAtLeast "0.5.0") [
         libcal
       ]
-      ++ lib.optionals (cublasmpAtLeast060 && cublasmpOlder080) [
+      ++ lib.optionals cublasmpOlder080 [
         libnvshmem
       ]
       ++ [
