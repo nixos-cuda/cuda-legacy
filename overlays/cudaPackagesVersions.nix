@@ -5,13 +5,42 @@ final: prev: {
       # TODO: Ideally we would add manifests but avoid replacing ones which are already present (e.g., from upstream).
       manifests = import ../pkgs/development/cuda-modules/_cuda/manifests { inherit (final) lib; };
 
-      # TODO: Temporary fixes while investigating default versions of redistributables.
       bootstrapData = final.lib.recursiveUpdate prevCuda.bootstrapData {
+        # TODO: Temporary fixes while investigating default versions of redistributables.
         cudaCapabilityToInfo = {
           # cuDNN 9.12 removed support, and we use at least that for CUDA 12
           "6.0".dontDefaultAfterCudaMajorMinorVersion = "11.8";
           "6.1".dontDefaultAfterCudaMajorMinorVersion = "11.8";
           "7.0".dontDefaultAfterCudaMajorMinorVersion = "11.8";
+        };
+
+        # NOTE: 25.11 lags behind release, so we re-introduce updates made upstream but unable to be backported.
+        nvccCompatibilities = {
+          # 13.0 to 13.1 adds support for Clang 21
+          # https://docs.nvidia.com/cuda/archive/13.1.1/cuda-installation-guide-linux/index.html#host-compiler-support-policy
+          "13.1" = {
+            clang = {
+              maxMajorVersion = "21";
+              minMajorVersion = "7";
+            };
+            gcc = {
+              maxMajorVersion = "15";
+              minMajorVersion = "6";
+            };
+          };
+
+          # No changes from 13.1 to 13.2
+          # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#host-compiler-support-policy
+          "13.2" = {
+            clang = {
+              maxMajorVersion = "21";
+              minMajorVersion = "7";
+            };
+            gcc = {
+              maxMajorVersion = "15";
+              minMajorVersion = "6";
+            };
+          };
         };
       };
 
@@ -216,6 +245,54 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "13.0.2";
+          cudnn = "9.14.0";
+          cudss = "0.7.1";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
+          cusparselt = "0.8.1";
+          cutensor = "2.3.1";
+          nppplus = "0.10.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
+          tensorrt =
+            if hasPreThorJetsonCudaCapability requestedJetsonCudaCapabilities then "10.7.0" else "10.14.1";
+        };
+
+      cudaPackages_13_1 =
+        let
+          inherit (final.cudaPackagesVersions.cudaPackages_13_1.backendStdenv)
+            requestedJetsonCudaCapabilities
+            ;
+        in
+        mkCudaPackages {
+          cublasmp = "0.8.0";
+          cuda = "13.1.1";
+          cudnn = "9.14.0";
+          cudss = "0.7.1";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
+          cusparselt = "0.8.1";
+          cutensor = "2.3.1";
+          nppplus = "0.10.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
+          tensorrt =
+            if hasPreThorJetsonCudaCapability requestedJetsonCudaCapabilities then "10.7.0" else "10.14.1";
+        };
+
+      cudaPackages_13_2 =
+        let
+          inherit (final.cudaPackagesVersions.cudaPackages_13_2.backendStdenv)
+            requestedJetsonCudaCapabilities
+            ;
+        in
+        mkCudaPackages {
+          cublasmp = "0.8.0";
+          cuda = "13.2.0";
           cudnn = "9.14.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
