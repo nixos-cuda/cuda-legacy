@@ -107,42 +107,42 @@ final: prev: {
       cudaPackages_12_0 = mkCudaPackages {
         cublasmp = "0.8.0";
         cuda = "12.0.1";
-        cudnn = "9.14.0";
+        cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_1 = mkCudaPackages {
         cublasmp = "0.8.0";
         cuda = "12.1.1";
-        cudnn = "9.14.0";
+        cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_2 = mkCudaPackages {
         cublasmp = "0.8.0";
         cuda = "12.2.2";
-        cudnn = "9.14.0";
+        cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_3 = mkCudaPackages {
         cublasmp = "0.8.0";
         cuda = "12.3.2";
-        cudnn = "9.14.0";
+        cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_4 = mkCudaPackages {
         cublasmp = "0.8.0";
         cuda = "12.4.1";
-        cudnn = "9.14.0";
+        cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_5 = mkCudaPackages {
         cublasmp = "0.8.0";
         cuda = "12.5.1";
-        cudnn = "9.14.0";
+        cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
@@ -156,7 +156,7 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "12.6.3";
-          cudnn = "9.14.0";
+          cudnn = "9.20.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
           cusolvermp = "0.7.0";
@@ -186,7 +186,7 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "12.8.1";
-          cudnn = "9.14.0";
+          cudnn = "9.20.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
           cusolvermp = "0.7.0";
@@ -216,7 +216,7 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "12.9.1";
-          cudnn = "9.14.0";
+          cudnn = "9.20.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
           cusolvermp = "0.7.0";
@@ -245,7 +245,7 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "13.0.2";
-          cudnn = "9.14.0";
+          cudnn = "9.20.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
           cusolvermp = "0.7.0";
@@ -269,7 +269,7 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "13.1.1";
-          cudnn = "9.14.0";
+          cudnn = "9.20.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
           cusolvermp = "0.7.0";
@@ -293,7 +293,7 @@ final: prev: {
         mkCudaPackages {
           cublasmp = "0.8.0";
           cuda = "13.2.0";
-          cudnn = "9.14.0";
+          cudnn = "9.20.0";
           cudss = "0.7.1";
           cuquantum = "25.09.0";
           cusolvermp = "0.7.0";
