@@ -11,9 +11,11 @@ let
   # gccVersions if they depended on top-level.
   gccVersions = import ../pkgs/development/compilers/gcc/all.nix {
     inherit (final)
+      buildPackages
       callPackage
       isl_0_20
       lib
+      overrideCC
       pkgs
       stdenv
       targetPackages
