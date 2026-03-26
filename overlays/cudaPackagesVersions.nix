@@ -105,42 +105,42 @@ final: prev: {
       };
 
       cudaPackages_12_0 = mkCudaPackages {
-        cublasmp = "0.8.1";
+        cublasmp = "0.8.0";
         cuda = "12.0.1";
         cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_1 = mkCudaPackages {
-        cublasmp = "0.8.1";
+        cublasmp = "0.8.0";
         cuda = "12.1.1";
         cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_2 = mkCudaPackages {
-        cublasmp = "0.8.1";
+        cublasmp = "0.8.0";
         cuda = "12.2.2";
         cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_3 = mkCudaPackages {
-        cublasmp = "0.8.1";
+        cublasmp = "0.8.0";
         cuda = "12.3.2";
         cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_4 = mkCudaPackages {
-        cublasmp = "0.8.1";
+        cublasmp = "0.8.0";
         cuda = "12.4.1";
         cudnn = "9.20.0";
         cudss = "0.7.1";
       };
 
       cudaPackages_12_5 = mkCudaPackages {
-        cublasmp = "0.8.1";
+        cublasmp = "0.8.0";
         cuda = "12.5.1";
         cudnn = "9.20.0";
         cudss = "0.7.1";
@@ -154,19 +154,19 @@ final: prev: {
             ;
         in
         mkCudaPackages {
-          cublasmp = "0.8.1";
+          cublasmp = "0.8.0";
           cuda = "12.6.3";
           cudnn = "9.20.0";
           cudss = "0.7.1";
-          cuquantum = "26.01.0";
-          cusolvermp = "0.7.1";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
           cusparselt = "0.6.3";
-          cutensor = "2.6.0";
+          cutensor = "2.3.1";
           nppplus = "0.10.0";
-          nvcomp = "5.1.0";
-          nvjpeg2000 = "0.9.1";
-          nvpl = "25.11";
-          nvtiff = "0.6.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
           tensorrt =
             if hasJetsonCudaCapability then
               "10.7.0"
@@ -184,19 +184,19 @@ final: prev: {
             ;
         in
         mkCudaPackages {
-          cublasmp = "0.8.1";
+          cublasmp = "0.8.0";
           cuda = "12.8.1";
           cudnn = "9.20.0";
           cudss = "0.7.1";
-          cuquantum = "26.01.0";
-          cusolvermp = "0.7.1";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
           cusparselt = "0.8.1";
-          cutensor = "2.6.0";
+          cutensor = "2.3.1";
           nppplus = "0.10.0";
-          nvcomp = "5.1.0";
-          nvjpeg2000 = "0.9.1";
-          nvpl = "25.11";
-          nvtiff = "0.6.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
           tensorrt =
             if hasJetsonCudaCapability then
               "10.7.0"
@@ -214,19 +214,19 @@ final: prev: {
             ;
         in
         mkCudaPackages {
-          cublasmp = "0.8.1";
+          cublasmp = "0.8.0";
           cuda = "12.9.1";
           cudnn = "9.20.0";
           cudss = "0.7.1";
-          cuquantum = "26.01.0";
-          cusolvermp = "0.7.1";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
           cusparselt = "0.8.1";
-          cutensor = "2.6.0";
+          cutensor = "2.3.1";
           nppplus = "0.10.0";
-          nvcomp = "5.1.0";
-          nvjpeg2000 = "0.9.1";
-          nvpl = "25.11";
-          nvtiff = "0.6.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
           tensorrt =
             if hasJetsonCudaCapability then
               "10.7.0"
@@ -243,19 +243,19 @@ final: prev: {
             ;
         in
         mkCudaPackages {
-          cublasmp = "0.8.1";
+          cublasmp = "0.8.0";
           cuda = "13.0.2";
           cudnn = "9.20.0";
           cudss = "0.7.1";
-          cuquantum = "26.01.0";
-          cusolvermp = "0.7.1";
-          cusparselt = "0.9.0";
-          cutensor = "2.6.0";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
+          cusparselt = "0.8.1";
+          cutensor = "2.3.1";
           nppplus = "0.10.0";
-          nvcomp = "5.1.0";
-          nvjpeg2000 = "0.9.1";
-          nvpl = "25.11";
-          nvtiff = "0.6.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
           tensorrt =
             if hasPreThorJetsonCudaCapability requestedJetsonCudaCapabilities then "10.7.0" else "10.14.1";
         };
@@ -267,19 +267,19 @@ final: prev: {
             ;
         in
         mkCudaPackages {
-          cublasmp = "0.8.1";
+          cublasmp = "0.8.0";
           cuda = "13.1.1";
           cudnn = "9.20.0";
           cudss = "0.7.1";
-          cuquantum = "26.01.0";
-          cusolvermp = "0.7.1";
-          cusparselt = "0.9.0";
-          cutensor = "2.6.0";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
+          cusparselt = "0.8.1";
+          cutensor = "2.3.1";
           nppplus = "0.10.0";
-          nvcomp = "5.1.0";
-          nvjpeg2000 = "0.9.1";
-          nvpl = "25.11";
-          nvtiff = "0.6.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
           tensorrt =
             if hasPreThorJetsonCudaCapability requestedJetsonCudaCapabilities then "10.7.0" else "10.14.1";
         };
@@ -291,19 +291,19 @@ final: prev: {
             ;
         in
         mkCudaPackages {
-          cublasmp = "0.8.1";
+          cublasmp = "0.8.0";
           cuda = "13.2.0";
           cudnn = "9.20.0";
           cudss = "0.7.1";
-          cuquantum = "26.01.0";
-          cusolvermp = "0.7.1";
-          cusparselt = "0.9.0";
-          cutensor = "2.6.0";
+          cuquantum = "25.09.0";
+          cusolvermp = "0.7.0";
+          cusparselt = "0.8.1";
+          cutensor = "2.3.1";
           nppplus = "0.10.0";
-          nvcomp = "5.1.0";
-          nvjpeg2000 = "0.9.1";
-          nvpl = "25.11";
-          nvtiff = "0.6.0";
+          nvcomp = "5.0.0.6";
+          nvjpeg2000 = "0.9.0";
+          nvpl = "25.5";
+          nvtiff = "0.5.1";
           tensorrt =
             if hasPreThorJetsonCudaCapability requestedJetsonCudaCapabilities then "10.7.0" else "10.14.1";
         };
