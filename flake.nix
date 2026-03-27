@@ -23,8 +23,10 @@
       inputs =
         let
           defaults = {
-            nixpkgs = getFlake "github:NixOS/nixpkgs/5475d3690311aad99f05b24bd91ae43be21aa11b";
-            flake-parts = getFlake "github:hercules-ci/flake-parts/2cccadc7357c0ba201788ae99c4dfa90728ef5e0";
+            # nixos-25.11 2026-03-24
+            nixpkgs = getFlake "github:NixOS/nixpkgs/1073dad219cb244572b74da2b20c7fe39cb3fa9e";
+            # main 2026-03-01
+            flake-parts = getFlake "github:hercules-ci/flake-parts/f20dc5d9b8027381c474144ecabc9034d6a839a3";
           };
 
           # If processing self or an input distinct from self, pass it through.
