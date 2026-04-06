@@ -29,7 +29,8 @@ in
   platforms = platforms.unix;
   teams = [
     teams.gcc
-  ] ++ lib.optionals (teams ? security-review) [
+  ]
+  ++ lib.optionals (teams ? security-review) [
     teams.security-review
   ];
   mainProgram = "${targetPrefix}gcc";

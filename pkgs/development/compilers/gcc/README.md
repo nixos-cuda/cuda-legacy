@@ -41,7 +41,7 @@ changes:
   `disableBootstrap` guards, Darwin `cc` vs `c` file extension, hash format
   selection).
 - **`patches/default.nix`**: Retains the full three-tier patch structure
-  (all-platform, platform-specific, gcc<12-only) including patches for GCC 9-12
+  (all-platform, platform-specific, gcc\<12-only) including patches for GCC 9-12
   on Darwin, MinGW, musl, etc.
 - **`common/dependencies.nix`**: Conditionalizes `libxcrypt` on GCC >= 10.
 - **`common/configure-flags.nix`**: Retains `--disable-libsanitizer` for
