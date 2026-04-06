@@ -60,7 +60,12 @@ lib.pipe drv
             useLibgccFromTargetLibc = libcCross != null && libcCross ? passthru.libgcc;
 
             enableLibGccOutput =
-              (!stdenv.targetPlatform.isWindows || (lib.systems.equals stdenv.targetPlatform stdenv.hostPlatform))
+              # $libgcc logic is currently hardcoded for .so
+              # NOTE: isPE was added in Nixpkgs 3dcf921c (master only, not release-25.11).
+              !(stdenv.hostPlatform.isPE or (stdenv.hostPlatform.isWindows || stdenv.hostPlatform.isCygwin))
+              && !(stdenv.targetPlatform.isPE
+                or (stdenv.targetPlatform.isWindows || stdenv.targetPlatform.isCygwin)
+              )
               && !langJit
               && !stdenv.hostPlatform.isDarwin
               && enableShared

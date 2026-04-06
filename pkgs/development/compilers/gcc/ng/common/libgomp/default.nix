@@ -6,22 +6,22 @@
   version,
   getVersionFile,
   monorepoSrc ? null,
-  fetchpatch,
   autoreconfHook269,
   runCommand,
 }:
 stdenv.mkDerivation (finalAttrs: {
-  pname = "libatomic";
+  pname = "libgomp";
   inherit version;
 
-  src = runCommand "libatomic-src-${version}" { src = monorepoSrc; } ''
+  src = runCommand "libgomp-src-${version}" { src = monorepoSrc; } ''
     runPhase unpackPhase
 
     mkdir -p "$out/gcc"
     cp gcc/BASE-VER "$out/gcc"
     cp gcc/DATESTAMP "$out/gcc"
 
-    cp -r libatomic "$out"
+    cp -r libgomp "$out"
+    cp -r include "$out"
 
     cp -r config "$out"
     cp -r multilib.am "$out"
@@ -38,17 +38,9 @@ stdenv.mkDerivation (finalAttrs: {
     [[ -f MD5SUMS ]]; cp MD5SUMS "$out"
   '';
 
-  patches = [
-    (fetchpatch {
-      name = "custom-threading-model.patch";
-      url = "https://github.com/gcc-mirror/gcc/commit/e5d853bbe9b05d6a00d98ad236f01937303e40c4.diff";
-      hash = "sha256-U1Eh6ByhmseHQigfHIyO4MlAQB3fECmpPEP/M00DOg0=";
-      includes = [
-        "config/*"
-        "libatomic/configure.ac"
-      ];
-    })
-    (getVersionFile "libatomic/gthr-include.patch")
+  outputs = [
+    "out"
+    "dev"
   ];
 
   postUnpack = ''
@@ -57,7 +49,7 @@ stdenv.mkDerivation (finalAttrs: {
   '';
 
   preAutoreconf = ''
-    sourceRoot=$(readlink -e "./libatomic")
+    sourceRoot=$(readlink -e "./libgomp")
     cd $sourceRoot
   '';
 

@@ -19,7 +19,7 @@
   cargo,
   staticCompiler ? false,
   enableShared ? stdenv.targetPlatform.hasSharedLibraries,
-  enableDefaultPie ? true,
+  enableDefaultPie ? stdenv.targetPlatform.hasSharedLibraries,
   enableLTO ? stdenv.hostPlatform.hasSharedLibraries,
   texinfo ? null,
   perl ? null, # optional, for texi2pod (then pod2man)
@@ -30,6 +30,7 @@
   which,
   patchelf,
   binutils,
+  autoconf269,
   isl ? null, # optional, for the Graphite optimization framework.
   zlib ? null,
   libucontext ? null,
@@ -140,6 +141,7 @@ let
     # inherit generated with 'nix eval --json --impure --expr "with import ./. {}; lib.attrNames (lib.functionArgs gcc${majorVersion}.cc.override)" | jq '.[]' --raw-output'
     inherit
       apple-sdk
+      autoconf269
       binutils
       buildPackages
       cargo
@@ -243,7 +245,6 @@ pipe
 
       hardeningDisable = [
         "format"
-        "pie"
         "stackclashprotection"
       ]
       ++ optionals (is11 && langAda) [ "fortify3" ];

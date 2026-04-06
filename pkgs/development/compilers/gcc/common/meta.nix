@@ -27,8 +27,13 @@ in
   '';
 
   platforms = platforms.unix;
-  teams = [ teams.gcc ];
+  teams = [
+    teams.gcc
+  ]
+  ++ lib.optionals (teams ? security-review) [
+    teams.security-review
+  ];
   mainProgram = "${targetPrefix}gcc";
 
-  identifiers.cpeParts.vendor = "gnu";
+  identifiers.cpeParts = lib.meta.cpeFullVersionWithVendor "gnu" version;
 }
