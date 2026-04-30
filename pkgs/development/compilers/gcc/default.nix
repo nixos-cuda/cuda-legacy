@@ -232,6 +232,8 @@ pipe
 
       inherit patches;
 
+      __structuredAttrs = true;
+
       outputs = [
         "out"
         "man"
