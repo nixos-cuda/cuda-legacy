@@ -66,9 +66,7 @@
 let
   inherit (lib)
     callPackageWith
-    filter
     getBin
-    maintainers
     makeLibraryPath
     makeSearchPathOutput
     mapAttrs
@@ -77,7 +75,6 @@ let
     optionals
     optionalString
     pipe
-    platforms
     versionAtLeast
     versions
     ;
@@ -453,7 +450,6 @@ pipe
           license
           description
           longDescription
-          platforms
           teams
           mainProgram
           identifiers
