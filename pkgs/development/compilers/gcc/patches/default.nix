@@ -101,10 +101,20 @@ in
       "12" = [
         ./no-sys-dirs-riscv.patch
         ./12/mangle-NIX_STORE-in-__FILE__.patch
+        ./13/libsanitizer-fix-with-glibc-2.42.patch
       ];
-      "11" = [ ./no-sys-dirs-riscv.patch ];
-      "10" = [ ./no-sys-dirs-riscv.patch ];
-      "9" = [ ./no-sys-dirs-riscv-gcc9.patch ];
+      "11" = [
+        ./no-sys-dirs-riscv.patch
+        ./11/libsanitizer-fix-with-glibc-2.42.patch
+      ];
+      "10" = [
+        ./no-sys-dirs-riscv.patch
+        ./11/libsanitizer-fix-with-glibc-2.42.patch
+      ];
+      "9" = [
+        ./no-sys-dirs-riscv-gcc9.patch
+        ./9/libsanitizer-fix-with-glibc-2.42.patch
+      ];
     }
     ."${majorVersion}" or [ ]
   )
