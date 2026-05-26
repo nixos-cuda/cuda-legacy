@@ -14,7 +14,7 @@
     {
       _module.args.pkgs = import inputs.nixpkgs {
         config =
-          { pkgs }:
+          { pkgs, ... }:
           {
             # By default, Nixpkgs allows aliases. Setting them to false allows us to detect breakages sooner rather
             # than later.
