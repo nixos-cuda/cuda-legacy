@@ -2,8 +2,13 @@ final: prev: {
   # Top-level fix-point used in `cudaPackages`' internals
   _cuda = prev._cuda.extend (
     finalCuda: prevCuda: {
-      # TODO: Ideally we would add manifests but avoid replacing ones which are already present (e.g., from upstream).
-      manifests = import ../pkgs/development/cuda-modules/_cuda/manifests { inherit (final) lib; };
+      # Manifests from cuda-legacy are clobbered by ones from upstream at the granularity of the version of the manifest.
+      manifests =
+        let
+          inherit (builtins) mapAttrs;
+          ourManifests = import ../pkgs/development/cuda-modules/_cuda/manifests { inherit (final) lib; };
+        in
+        mapAttrs (name: value: ourManifests.${name} or { } // value) (ourManifests // prevCuda.manifests);
 
       bootstrapData = final.lib.recursiveUpdate prevCuda.bootstrapData {
         # TODO: Temporary fixes while investigating default versions of redistributables.
