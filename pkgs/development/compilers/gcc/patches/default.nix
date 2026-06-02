@@ -23,6 +23,8 @@
   fetchurl,
   withoutTargetLibc,
   threadsCross,
+  buildIsHost,
+  hostIsTarget,
 }:
 
 let
@@ -44,10 +46,7 @@ let
   # aarch64-darwin, as it breaks building a foreign one:
   # https://github.com/iains/gcc-12-branch/issues/18
   canApplyIainsDarwinPatches =
-    stdenv.hostPlatform.isDarwin
-    && stdenv.hostPlatform.isAarch64
-    && (lib.systems.equals buildPlatform hostPlatform)
-    && (lib.systems.equals hostPlatform targetPlatform);
+    stdenv.hostPlatform.isDarwin && stdenv.hostPlatform.isAarch64 && buildIsHost && hostIsTarget;
 
   inherit (lib) optionals optional;
 in
@@ -70,7 +69,7 @@ in
   hash = "sha256-bnHKJP5jR8rNJjRTi58/N/qZ5fPkuFBk7WblJWQpKOs=";
 })
 # Pass the path to a C++ compiler directly in the Makefile.in
-++ optional (!lib.systems.equals targetPlatform hostPlatform) ./libstdc++-target.patch
+++ optional (!hostIsTarget) ./libstdc++-target.patch
 ++ optionals (noSysDirs) (
   [
     # Do not try looking for binaries and libraries in /lib and /usr/lib
@@ -78,6 +77,16 @@ in
   ]
   ++ (
     {
+      "16" = [
+        # Do not try looking for binaries and libraries in /lib and /usr/lib
+        ./13/no-sys-dirs-riscv.patch
+        # Mangle the nix store hash in __FILE__ to prevent unneeded runtime references
+        #
+        # TODO: Remove these and the `useMacroPrefixMap` conditional
+        # in `cc-wrapper` once <https://gcc.gnu.org/PR111527>
+        # is fixed.
+        ./13/mangle-NIX_STORE-in-__FILE__.patch
+      ];
       "15" = [
         # Do not try looking for binaries and libraries in /lib and /usr/lib
         ./13/no-sys-dirs-riscv.patch
@@ -319,6 +328,7 @@ in
     hash = "sha256-8I2G4430gkYoWgUued4unqhk8ZCajHf1dcivAeuLZ0E=";
   })
 ]
+++ optional (targetPlatform.isMusl && targetPlatform.isx86_32) ./libssp-noshared-musl32.patch
 
 ## Windows
 
