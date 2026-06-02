@@ -13,8 +13,8 @@ We generally use commits from the latest stable release branch; the overlay shou
 Currently, that is (always be sure to verify as the README is not kept in sync):
 
 ```nix
-# nixos-25.11 2026-03-24
-nixpkgs = getFlake "github:NixOS/nixpkgs/1073dad219cb244572b74da2b20c7fe39cb3fa9e";
+# nixos-26.05-pre 2026-05-21
+nixpkgs = getFlake "github:NixOS/nixpkgs/32ff23b7ead295ae5cca5d731ff87ecce73eee44";
 ```
 
 # License
