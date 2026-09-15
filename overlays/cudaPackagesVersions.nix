@@ -62,6 +62,7 @@ final: prev: {
             finalCudaPackages.callPackage ../pkgs/development/cuda-modules/packages/libcublasmp.nix
               { };
           libcudss = finalCudaPackages.callPackage ../pkgs/development/cuda-modules/packages/libcudss.nix { };
+          tensorrt-samples = finalCudaPackages.callPackage ../pkgs/development/cuda-modules/packages/tensorrt-samples/package.nix { };
         })
       ];
     }
